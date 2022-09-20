@@ -173,3 +173,56 @@ print(f"Auc: {round(roc_auc_score(y_pred, y_test), 2)}")
 # F1: 0.64
 # Auc: 0.75
 
+##################################
+# GÖREV 2: FEATURE ENGINEERING
+##################################
+
+##################################
+# EKSİK DEĞER ANALİZİ
+##################################
+
+# Bir insanda Pregnancies ve Outcome dışındaki değişken değerleri 0 olamayacağı bilinmektedir.
+# Bundan dolayı bu değerlerle ilgili aksiyon kararı alınmalıdır. 0 olan değerlere NaN atanabilir .
+zero_columns = [col for col in df.columns if (df[col].min() == 0 and col not in ["Pregnancies", "Outcome"])]
+
+zero_columns
+
+# Gözlem birimlerinde 0 olan degiskenlerin her birisine gidip 0 iceren gozlem degerlerini NaN ile değiştirdik.
+for col in zero_columns:
+    df[col] = np.where(df[col] == 0, np.nan, df[col])
+
+# Eksik Gözlem Analizi
+df.isnull().sum()
+
+
+def missing_values_table(dataframe, na_name=False):
+    na_columns = [col for col in dataframe.columns if dataframe[col].isnull().sum() > 0] #Nan değer varsa bu listeye kaydediyor
+    n_miss = dataframe[na_columns].isnull().sum().sort_values(ascending=False) #bu kaydedilen değerleri büyükten küçüğe sıralıyoruz ascending=True olsaydı küçükten büyüğe olacaktı
+    ratio = (dataframe[na_columns].isnull().sum() / dataframe.shape[0] * 100).sort_values(ascending=False)#Bu nan olan kısımlar ilgili elemanın toplam üyesine bölüp 100 ile çarparak % sini alıyor
+    missing_df = pd.concat([n_miss, np.round(ratio, 2)], axis=1, keys=['n_miss', 'ratio'])
+    print(missing_df, end="\n")
+    if na_name:
+        return na_columns
+
+
+na_columns = missing_values_table(df, na_name=True)
+
+
+# Eksik Değerlerin Bağımlı Değişken ile İlişkisinin İncelenmesi
+def missing_vs_target(dataframe, target, na_columns):
+    temp_df = dataframe.copy()
+    for col in na_columns:
+        temp_df[col + '_NA_FLAG'] = np.where(temp_df[col].isnull(), 1, 0)
+    na_flags = temp_df.loc[:, temp_df.columns.str.contains("_NA_")].columns
+    for col in na_flags:
+        print(pd.DataFrame({"TARGET_MEAN": temp_df.groupby(col)[target].mean(),
+                            "Count": temp_df.groupby(col)[target].count()}), end="\n\n\n")
+
+
+missing_vs_target(df, "Outcome", na_columns)
+
+# Eksik Değerlerin Doldurulması
+for col in zero_columns:
+    df.loc[df[col].isnull(), col] = df[col].median()
+
+df.isnull().sum()
